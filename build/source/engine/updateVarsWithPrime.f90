@@ -431,6 +431,7 @@ subroutine updateVarsWithPrime(&
       ! compute temperature from enthalpy and water content for remaining domains 
       if(ixDomainType==iname_veg)then
         if(enthalpyStateVec)then
+          scalarCanopyTempTrial = scalarCanopyTemp ! start at previous value
           call enthalpy2T_veg(&
                    computJac,                  & ! intent(in):    flag if computing for Jacobian update          
                    canopyDepth,                & ! intent(in):    canopy depth (m)
@@ -450,6 +451,7 @@ subroutine updateVarsWithPrime(&
         endif
       elseif(ixDomainType==iname_snow)then
         if(enthalpyStateVec)then
+          mLayerTempTrial(iLayer) = mLayerTemp(iLayer) ! start at previous value
           call enthalpy2T_snow(&
                    computJac,                      & ! intent(in):    flag if computing for Jacobian update       
                    snowfrz_scale,                  & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
@@ -466,6 +468,7 @@ subroutine updateVarsWithPrime(&
         endif
       elseif(ixDomainType==iname_soil)then
         if(enthalpyStateVec)then
+          mLayerTempTrial(iLayer) = mLayerTemp(iLayer) ! start at previous value
           call enthalpy2T_soil(&
                    computJac,                              & ! intent(in):    flag if computing for Jacobian update
                    use_lookup,                             & ! intent(in):    flag to use the lookup table for soil enthalpy
