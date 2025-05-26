@@ -77,7 +77,10 @@ USE mDecisions_module,only:   &
   funcBottomHead,             & ! function of matric head in the lower-most layer
   freeDrainage,               & ! free drainage
   liquidFlux,                 & ! liquid water flux
-  zeroFlux                      ! zero flux
+  zeroFlux,                   & ! zero flux
+  ! look-up values for the maximum infiltration rate parameterization
+  GreenAmpt,                  & ! Green-Ampt parameterization
+  topmodel_GA                   ! Green-Ampt parameterization with conductivity profile from TOPMODEL-ish parameterization  
 
 ! -----------------------------------------------------------------------------------------------------------
 implicit none
@@ -1212,6 +1215,8 @@ contains
  subroutine update_surfaceFlx_liquidFlux_computation_wetting_front
   ! **** Update operations for surfaceFlx: flux condition -- main computations (wetting front and derivatives) ****
   associate(&
+   ! input: model control
+   ixInfRateMax => in_surfaceFlx % ixInfRateMax , & ! index defining the maximum infiltration rate method (GreenAmpt, topmodel_GA)
    ! input: depth of upper-most soil layer (m)
    mLayerDepth  => in_surfaceFlx % mLayerDepth  , & ! depth of upper-most soil layer (m)
    ! input: transmittance
@@ -1229,21 +1234,32 @@ contains
    depthWettingFront = (rootZoneLiq/availCapacity)*min(rootingDepth, total_soil_depth)
    dDepthWettingFront_dWat(:)=( dRootZoneLiq_dWat(:)*min(rootingDepth, total_soil_depth) + dRootZoneIce_dWat(:)*depthWettingFront )/availCapacity
    dDepthWettingFront_dTk(:) =( dRootZoneLiq_dTk(:) *min(rootingDepth, total_soil_depth) + dRootZoneIce_dTk(:)*depthWettingFront  )/availCapacity
- 
-   ! define the hydraulic conductivity at depth=depthWettingFront (m s-1)
-   hydCondWettingFront =  surfaceSatHydCond * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 1._rkind) )
- 
-   ! define the maximum infiltration rate (m s-1) and derivatives
-   xMaxInfilRate = hydCondWettingFront*( (wettingFrontSuction + depthWettingFront)/depthWettingFront )  ! maximum infiltration rate (m s-1)
-   fPart1    = hydCondWettingFront
-   fPart2    = (wettingFrontSuction + depthWettingFront)/depthWettingFront
-   dPart1(:) = surfaceSatHydCond*(zScale_TOPMODEL - 1._rkind) * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 2._rkind) ) * (-dDepthWettingFront_dWat(:))/total_soil_depth
-   dPart2(:) = -dDepthWettingFront_dWat(:)*wettingFrontSuction / (depthWettingFront**2_i4b)
-   dxMaxInfilRate_dWat(:) = fPart1*dPart2(:) + fPart2*dPart1(:)
-   dPart1(:) = surfaceSatHydCond*(zScale_TOPMODEL - 1._rkind) * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 2._rkind) ) * (-dDepthWettingFront_dTk(:))/total_soil_depth
-   dPart2(:) = -dDepthWettingFront_dTk(:)*wettingFrontSuction / (depthWettingFront**2_i4b)
-   dxMaxInfilRate_dTk(:)  = fPart1*dPart2(:) + fPart2*dPart1(:)
 
+   ! process hydraulic conductivity-controlled infiltration rate
+   select case(ixInfRateMax)  ! maximum infiltration rate parameterization
+    case(topmodel_GA)
+     ! define the hydraulic conductivity at depth=depthWettingFront (m s-1)
+     hydCondWettingFront =  surfaceSatHydCond * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 1._rkind) )
+     ! define the maximum infiltration rate (m s-1)
+     xMaxInfilRate = hydCondWettingFront*( (wettingFrontSuction + depthWettingFront)/depthWettingFront )  ! maximum infiltration rate (m s-1)
+     ! define the derivatives
+     fPart1    = hydCondWettingFront
+     fPart2    = (wettingFrontSuction + depthWettingFront)/depthWettingFront
+     dPart1(:) = surfaceSatHydCond*(zScale_TOPMODEL - 1._rkind) * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 2._rkind) ) * (-dDepthWettingFront_dWat(:))/total_soil_depth
+     dPart2(:) = -dDepthWettingFront_dWat(:)*wettingFrontSuction / (depthWettingFront**2_i4b)
+     dxMaxInfilRate_dWat(:) = fPart1*dPart2(:) + fPart2*dPart1(:)
+     dPart1(:) = surfaceSatHydCond*(zScale_TOPMODEL - 1._rkind) * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 2._rkind) ) * (-dDepthWettingFront_dTk(:))/total_soil_depth
+     dPart2(:) = -dDepthWettingFront_dTk(:)*wettingFrontSuction / (depthWettingFront**2_i4b)
+     dxMaxInfilRate_dTk(:)  = fPart1*dPart2(:) + fPart2*dPart1(:)
+    case(GreenAmpt)
+      ! define the hydraulic conductivity at depth=depthWettingFront (m s-1)
+      hydCondWettingFront =  surfaceSatHydCond ! Green-Ampt assumes homogeneous soil, therefore the whole soil column has the same hydraulic conductivity
+      ! define the maximum infiltration rate (m s-1)
+      xMaxInfilRate = hydCondWettingFront * (1 + (1._rkind - depthWettingFront/sum(mLayerDepth)) * wettingFrontSuction/depthWettingFront) ! Ks * (1 + (Md) * S/F)
+      ! define the derivatives
+      dxMaxInfilRate_dWat(:) = 0 ! Temporary
+      dxMaxInfilRate_dTk(:)  = 0 ! Temporary
+   end select
   end associate
  end subroutine update_surfaceFlx_liquidFlux_computation_wetting_front
 
