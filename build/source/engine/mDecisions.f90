@@ -157,6 +157,7 @@ integer(i4b),parameter,public :: emptyStart           = 327    ! empty aquifer a
 ! look-up values for the infiltration method
 integer(i4b),parameter,public :: GreenAmpt            = 331    ! Green-Ampt
 integer(i4b),parameter,public :: topmodel_GA          = 332    ! Green-Ampt-ish for use with qbaseTopmodel hydraulic conductivity
+integer(i4b),parameter,public :: noInfiltrationExcess = 333    ! No infiltration excess runoff
 ! ----------------------------------------------------------------------------------------------------------- 
 
 contains
@@ -671,6 +672,7 @@ subroutine mDecisions(err,message)
   select case(trim(model_decisions(iLookDECISIONS%infRateMax)%cDecision))
     case('GreenAmpt','notPopulatedYet'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = GreenAmpt   ! Green-Ampt
     case('topmodel_GA'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = topmodel_GA                 ! Green-Ampt with TOPMODEL conductivity rate
+    case('noInfExc'); model_decisions(iLookDECISIONS%infRateMax)%iDecision = noInfiltrationExcess           ! no infiltration excess runoff (saturation excess may still occur)
     case default
       err=10; message=trim(message)//"unknown option for infiltration method [option="//trim(model_decisions(iLookDECISIONS%infRateMax)%cDecision)//"]"; return
   end select

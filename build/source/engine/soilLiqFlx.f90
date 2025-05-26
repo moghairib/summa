@@ -80,7 +80,8 @@ USE mDecisions_module,only:   &
   zeroFlux,                   & ! zero flux
   ! look-up values for the maximum infiltration rate parameterization
   GreenAmpt,                  & ! Green-Ampt parameterization
-  topmodel_GA                   ! Green-Ampt parameterization with conductivity profile from TOPMODEL-ish parameterization  
+  topmodel_GA,                & ! Green-Ampt parameterization with conductivity profile from TOPMODEL-ish parameterization  
+  noInfiltrationExcess          ! no infiltration excess runoff
 
 ! -----------------------------------------------------------------------------------------------------------
 implicit none
@@ -88,6 +89,7 @@ private
 public :: soilLiqFlx
 ! constant parameters
 real(rkind),parameter     :: verySmall=1.e-12_rkind       ! a very small number (used to avoid divide by zero)
+real(rkind),parameter     :: veryBig=1.e+20_rkind         ! a very big number (used to effectively set infiltration excess to zero)
 real(rkind),parameter     :: dx=1.e-8_rkind               ! finite difference increment
 contains
 ! ***************************************************************************************************************
@@ -1216,7 +1218,7 @@ contains
   ! **** Update operations for surfaceFlx: flux condition -- main computations (wetting front and derivatives) ****
   associate(&
    ! input: model control
-   ixInfRateMax => in_surfaceFlx % ixInfRateMax , & ! index defining the maximum infiltration rate method (GreenAmpt, topmodel_GA)
+   ixInfRateMax => in_surfaceFlx % ixInfRateMax , & ! index defining the maximum infiltration rate method (GreenAmpt, topmodel_GA, noInfiltrationExcess)
    ! input: depth of upper-most soil layer (m)
    mLayerDepth  => in_surfaceFlx % mLayerDepth  , & ! depth of upper-most soil layer (m)
    ! input: transmittance
@@ -1259,6 +1261,14 @@ contains
       ! define the derivatives
       dxMaxInfilRate_dWat(:) = 0 ! Temporary
       dxMaxInfilRate_dTk(:)  = 0 ! Temporary
+    case(noInfiltrationExcess)
+      ! define the hydraulic conductivity at depth=depthWettingFront (m s-1)
+      !hydCondWettingFront =  surfaceSatHydCond ! this is not needed, but unsure if not setting this will cause problems
+      ! define the maximum infiltration rate (m s-1)
+      xMaxInfilRate = veryBig ! If maximum infiltration is very big we'll never have a rainfall rate that exceeds it, so no infiltration excess
+      ! define the derivatives
+      dxMaxInfilRate_dWat(:) = 0
+      dxMaxInfilRate_dTk(:)  = 0
    end select
   end associate
  end subroutine update_surfaceFlx_liquidFlux_computation_wetting_front
