@@ -1257,13 +1257,13 @@ contains
       ! define the hydraulic conductivity at depth=depthWettingFront (m s-1)
       hydCondWettingFront =  surfaceSatHydCond ! Green-Ampt assumes homogeneous soil, therefore the whole soil column has the same hydraulic conductivity
       ! define the maximum infiltration rate (m s-1)
-      xMaxInfilRate = hydCondWettingFront * (1 + (1._rkind - depthWettingFront/sum(mLayerDepth)) * wettingFrontSuction/depthWettingFront) ! Ks * (1 + (Md) * S/F)
+      xMaxInfilRate = hydCondWettingFront * (1._rkind + (1._rkind - depthWettingFront/sum(mLayerDepth)) * wettingFrontSuction/depthWettingFront) ! Ks * (1 + (Md) * S/F)
       ! define the derivatives
-      dxMaxInfilRate_dWat(:) = 0 ! Temporary
-      dxMaxInfilRate_dTk(:)  = 0 ! Temporary
+      dxMaxInfilRate_dWat(:) = -hydCondWettingFront*wettingFrontSuction*dDepthWettingFront_dWat(:)/depthWettingFront**2_i4b
+      dxMaxInfilRate_dTk(:)  = -hydCondWettingFront*wettingFrontSuction*dDepthWettingFront_dTk(:)/depthWettingFront**2_i4b
     case(noInfiltrationExcess)
       ! define the hydraulic conductivity at depth=depthWettingFront (m s-1)
-      !hydCondWettingFront =  surfaceSatHydCond ! this is not needed, but unsure if not setting this will cause problems
+      !hydCondWettingFront =  surfaceSatHydCond ! this is not needed for this calculation, but keeping it here in case not setting this will cause unanticipated problems down the line
       ! define the maximum infiltration rate (m s-1)
       xMaxInfilRate = veryBig ! If maximum infiltration is very big we'll never have a rainfall rate that exceeds it, so no infiltration excess
       ! define the derivatives
